@@ -28,6 +28,10 @@ public class EnterpriseServiceImpl implements EnterpriseService {
         this.webClientActiveCard = webClientActiveCard.baseUrl(activeCardUrl).build();
     }
 
+    private static Mono<? extends Boolean> apply(Boolean x) {
+        return Boolean.TRUE.equals(x)?Mono.just(true):Mono.just(false);
+    }
+
     private Mono<Boolean> createCurrentAccount(List<CurrentAccount> cards) {
         return webClientPasiveCard.post().uri("/currentAccount/all").
                 body(Flux.fromIterable(cards), CurrentAccount.class).
@@ -35,10 +39,7 @@ public class EnterpriseServiceImpl implements EnterpriseService {
     }
     private Mono<Boolean> findAllCurrentAccountByDni(String dni){
         return webClientPasiveCard.get().uri("/currentAccount/all/dni/" + dni).
-                retrieve().bodyToFlux(CurrentAccount.class).hasElements().flatMap(x->{
-                if(x)return Mono.just(true);
-                return Mono.just(false);
-        });
+                retrieve().bodyToFlux(CurrentAccount.class).hasElements().flatMap(EnterpriseServiceImpl::apply);
     }
     private Mono<Boolean> createCreditAccount(List<CreditAccount> cards) {
         return webClientActiveCard.post().uri("/creditAccount/all").
@@ -47,10 +48,7 @@ public class EnterpriseServiceImpl implements EnterpriseService {
     }
     private Mono<Boolean> findAllCreditAccountByDni(String dni){
         return webClientActiveCard.get().uri("/creditAccount/all/dni/" + dni).
-                retrieve().bodyToFlux(CreditAccount.class).hasElements().flatMap(x->{
-            if(x)return Mono.just(true);
-            return Mono.just(false);
-        });
+                retrieve().bodyToFlux(CreditAccount.class).hasElements().flatMap(EnterpriseServiceImpl::apply);
     }
     @Override
     public Flux<Enterprise> findAll() {

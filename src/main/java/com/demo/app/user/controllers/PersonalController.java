@@ -42,6 +42,10 @@ public class PersonalController {
     public ResponseEntity<Mono<Personal>> saveFixedTermAccount(@RequestBody Personal personal){
         return ResponseEntity.ok(personalService.saveFixedTermAccount(personal));
     }
+    @PostMapping("/creditAccount")
+    public ResponseEntity<Mono<Personal>> saveCreditAccount(@RequestBody Personal personal){
+        return ResponseEntity.ok(personalService.saveCreditAccount(personal));
+    }
     @PutMapping("/{id}")
     public Mono<ResponseEntity<Personal>> update(@RequestBody Personal personal, @PathVariable String id){
         return personalService.update(personal,id).map(ResponseEntity::ok).defaultIfEmpty(ResponseEntity.notFound().build());

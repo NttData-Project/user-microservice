@@ -11,7 +11,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 
 
 @Service
@@ -27,6 +26,10 @@ public class PersonalServiceImpl implements PersonalService {
         this.personalRepository = personalRepository;
         this.webClientPasiveCard = webClientPasiveCard.baseUrl(pasiveCardUrl).build();
         this.webClientActiveCard = webClientActiveCard.baseUrl(activeCardUrl).build();
+    }
+
+    private static Mono<? extends Boolean> apply(Boolean x) {
+        return Boolean.TRUE.equals(x)?Mono.just(true):Mono.just(false);
     }
 
     @Override
@@ -64,17 +67,14 @@ public class PersonalServiceImpl implements PersonalService {
                 retrieve().bodyToMono(Boolean.class);
     }
 
-    private Mono<Boolean> createCreditAccount(List<CreditAccount> cards) {
-        return webClientActiveCard.post().uri("/creditAccount/all").
-                body(Flux.fromIterable(cards), CreditAccount.class).
-                retrieve().bodyToFlux(CreditAccount.class).then(Mono.just(true));
+    private Mono<Boolean> createCreditAccount(CreditAccount card) {
+        return webClientActiveCard.post().uri("/creditAccount").
+                body(Mono.just(card), CreditAccount.class).
+                retrieve().bodyToMono(CreditAccount.class).then(Mono.just(true));
     }
     private Mono<Boolean> findAllCreditAccountByDni(String dni){
         return webClientActiveCard.get().uri("/creditAccount/all/dni/" + dni).
-                retrieve().bodyToFlux(CreditAccount.class).hasElements().flatMap(x->{
-            if(x)return Mono.just(true);
-            return Mono.just(false);
-        });
+                retrieve().bodyToFlux(CreditAccount.class).hasElements().flatMap(PersonalServiceImpl::apply);
     }
 
     private Mono<Boolean> findCardsDuplicated(String dni) {
@@ -115,7 +115,6 @@ public class PersonalServiceImpl implements PersonalService {
         savingAccount.setType(SavingAccountType.VIP);
         return Mono.zip(findAllCreditAccountByDni(personal.getDni()),findAndCreatePersonalAccount(personal, savingAccount))
                 .map(account->{
-                    System.out.println(account.getT1());
                     if(account.getT1().equals(false)) return Mono.empty();
                     return account.getT2();
                 }).thenReturn(personal);
@@ -137,10 +136,20 @@ public class PersonalServiceImpl implements PersonalService {
     }
 
     @Override
+    public Mono<Personal> saveCreditAccount(Personal personal) {
+        return Mono.zip(findAllCreditAccountByDni(personal.getDni()),createCreditAccount(personal.getCreditAccount()))
+                .map(account->{
+                    if(account.getT1().equals(false)) return Mono.empty();
+                    return account.getT2();
+                }).thenReturn(personal);
+    }
+
+    @Override
     @Transactional
     public Mono<Personal> saveCurrentAccount(Personal personal) {
         CurrentAccount currentAccount = personal.getCurrentAccount();
         currentAccount.setDni(personal.getDni());
+        currentAccount.setType(CurrentAccountType.NORMAL);
         return findCardsDuplicated(personal.getDni()).flatMap(x->{
             if(!x) return Mono.zip(personalRepository.save(personal), createCurrentAccount(currentAccount))
                     .map(account -> {
