@@ -11,5 +11,5 @@ public class FixedTermAccount {
     private TypeCurrency currency;
     private String accountNumber;
     private Integer cvc;
-    private String dni;
+    private String identifier;
 }

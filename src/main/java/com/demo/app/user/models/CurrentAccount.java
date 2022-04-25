@@ -11,5 +11,5 @@ public class CurrentAccount{
     private String accountNumber;
     private CurrentAccountType type;
     private Integer cvc;
-    private String dni;
+    private String identifier;
 }

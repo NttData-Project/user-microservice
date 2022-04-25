@@ -17,14 +17,14 @@ import reactor.core.publisher.Mono;
 public class PersonalServiceImpl implements PersonalService {
 
     private final PersonalRepository personalRepository;
-    private final WebClient webClientPasiveCard;
+    private final WebClient webClientPassiveCard;
     private final WebClient webClientActiveCard;
 
 
-    public PersonalServiceImpl(PersonalRepository personalRepository, WebClient.Builder webClientPasiveCard, WebClient.Builder webClientActiveCard
-            , @Value("${pasive.card}") String pasiveCardUrl, @Value("${active.card}") String activeCardUrl) {
+    public PersonalServiceImpl(PersonalRepository personalRepository, WebClient.Builder webClientPassiveCard, WebClient.Builder webClientActiveCard
+            , @Value("${passive.card}") String passiveCardUrl, @Value("${active.card}") String activeCardUrl) {
         this.personalRepository = personalRepository;
-        this.webClientPasiveCard = webClientPasiveCard.baseUrl(pasiveCardUrl).build();
+        this.webClientPassiveCard = webClientPassiveCard.baseUrl(passiveCardUrl).build();
         this.webClientActiveCard = webClientActiveCard.baseUrl(activeCardUrl).build();
     }
 
@@ -39,31 +39,31 @@ public class PersonalServiceImpl implements PersonalService {
     }
 
     private Mono<CurrentAccount> createCurrentAccount(CurrentAccount card) {
-        return webClientPasiveCard.post().uri("/currentAccount").
+        return webClientPassiveCard.post().uri("/currentAccount").
                 body(Mono.just(card), CurrentAccount.class).
                 retrieve().bodyToMono(CurrentAccount.class);
     }
     private Mono<SavingAccount> createSavingAccount(SavingAccount card) {
-        return webClientPasiveCard.post().uri("/savingAccount").
+        return webClientPassiveCard.post().uri("/savingAccount").
                 body(Mono.just(card), SavingAccount.class).
                 retrieve().bodyToMono(SavingAccount.class);
     }
     private Mono<FixedTermAccount> createFixedTermAccount(FixedTermAccount card) {
-        return webClientPasiveCard.post().uri("/fixedTermAccount").
+        return webClientPassiveCard.post().uri("/fixedTermAccount").
                 body(Mono.just(card), FixedTermAccount.class).
                 retrieve().bodyToMono(FixedTermAccount.class);
     }
 
     private Mono<Boolean> findCurrentAccountByDni(String dni){
-        return webClientPasiveCard.get().uri("/currentAccount/dni/" + dni).
+        return webClientPassiveCard.get().uri("/currentAccount/identifier/" + dni).
                 retrieve().bodyToMono(Boolean.class);
     }
     private Mono<Boolean> findSavingAccountByDni(String dni){
-        return webClientPasiveCard.get().uri("/savingAccount/dni/" + dni).
+        return webClientPassiveCard.get().uri("/savingAccount/identifier/" + dni).
                 retrieve().bodyToMono(Boolean.class);
     }
     private Mono<Boolean> findFixedTermAccountByDni(String dni){
-        return webClientPasiveCard.get().uri("/fixedTermAccount/dni/" + dni).
+        return webClientPassiveCard.get().uri("/fixedTermAccount/identifier/" + dni).
                 retrieve().bodyToMono(Boolean.class);
     }
 
@@ -73,8 +73,16 @@ public class PersonalServiceImpl implements PersonalService {
                 retrieve().bodyToMono(CreditAccount.class).then(Mono.just(true));
     }
     private Mono<Boolean> findAllCreditAccountByDni(String dni){
-        return webClientActiveCard.get().uri("/creditAccount/all/dni/" + dni).
+        return webClientActiveCard.get().uri("/creditAccount/all/identifier/" + dni).
                 retrieve().bodyToFlux(CreditAccount.class).hasElements().flatMap(PersonalServiceImpl::apply);
+    }
+
+    private Mono<CurrentAccount> updateCurrentAccount(CurrentAccount currentAccount){
+        return webClientPassiveCard.put().uri("/currentAccount/identifier" + currentAccount.getIdentifier()+
+                "/account/"+currentAccount.getAccountNumber()).
+                body(Mono.just(currentAccount), CurrentAccount.class)
+                .retrieve()
+                .bodyToMono(CurrentAccount.class);
     }
 
     private Mono<Boolean> findCardsDuplicated(String dni) {
@@ -95,7 +103,7 @@ public class PersonalServiceImpl implements PersonalService {
                         account.getT1();
                         return account.getT2();
                     });
-            return Mono.just(personal);
+            return Mono.empty();
         }).thenReturn(personal);
     }
 
@@ -103,7 +111,7 @@ public class PersonalServiceImpl implements PersonalService {
     @Transactional
     public Mono<Personal> saveNormalSavingAccount(Personal personal) {
         SavingAccount savingAccount = personal.getSavingAccount();
-        savingAccount.setDni(personal.getDni());
+        savingAccount.setIdentifier(personal.getDni());
         savingAccount.setType(SavingAccountType.NORMAL);
         return findAndCreatePersonalAccount(personal, savingAccount);
     }
@@ -111,20 +119,16 @@ public class PersonalServiceImpl implements PersonalService {
     @Override
     public Mono<Personal> saveVipSavingAccount(Personal personal) {
         SavingAccount savingAccount = personal.getSavingAccount();
-        savingAccount.setDni(personal.getDni());
+        savingAccount.setIdentifier(personal.getDni());
         savingAccount.setType(SavingAccountType.VIP);
-        return Mono.zip(findAllCreditAccountByDni(personal.getDni()),findAndCreatePersonalAccount(personal, savingAccount))
-                .map(account->{
-                    if(account.getT1().equals(false)) return Mono.empty();
-                    return account.getT2();
-                }).thenReturn(personal);
+        return findAllCreditAccountByDni(personal.getDni()).flatMap(x->x?findAndCreatePersonalAccount(personal,savingAccount):Mono.empty());
     }
 
     @Override
     @Transactional
     public Mono<Personal> saveFixedTermAccount(Personal personal) {
         FixedTermAccount fixedTermAccount = personal.getFixedTermAccount();
-        fixedTermAccount.setDni(personal.getDni());
+        fixedTermAccount.setIdentifier(personal.getDni());
         return findCardsDuplicated(personal.getDni()).flatMap(x->{
             if(!x) return Mono.zip(personalRepository.save(personal), createFixedTermAccount(fixedTermAccount))
                     .map(account -> {
@@ -148,7 +152,7 @@ public class PersonalServiceImpl implements PersonalService {
     @Transactional
     public Mono<Personal> saveCurrentAccount(Personal personal) {
         CurrentAccount currentAccount = personal.getCurrentAccount();
-        currentAccount.setDni(personal.getDni());
+        currentAccount.setIdentifier(personal.getDni());
         currentAccount.setType(CurrentAccountType.NORMAL);
         return findCardsDuplicated(personal.getDni()).flatMap(x->{
             if(!x) return Mono.zip(personalRepository.save(personal), createCurrentAccount(currentAccount))
@@ -173,7 +177,8 @@ public class PersonalServiceImpl implements PersonalService {
             x.setLastName(personal.getLastName());
             x.setEmail(personal.getEmail());
             x.setNumber(personal.getNumber());
-            return personalRepository.save(x);
+            if(x.getCurrentAccount()!=null) return updateCurrentAccount(personal.getCurrentAccount()).then(personalRepository.save(x));
+            else return personalRepository.save(x);
         });
     }
 

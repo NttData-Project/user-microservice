@@ -12,5 +12,5 @@ public class SavingAccount {
     private SavingAccountType type;
     private String accountNumber;
     private Integer cvc;
-    private String dni;
+    private String identifier;
 }
