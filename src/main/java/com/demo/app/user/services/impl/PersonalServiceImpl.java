@@ -141,10 +141,13 @@ public class PersonalServiceImpl implements PersonalService {
 
     @Override
     public Mono<Personal> saveCreditAccount(Personal personal) {
-        return Mono.zip(findAllCreditAccountByDni(personal.getDni()),createCreditAccount(personal.getCreditAccount()))
+        CreditAccount creditAccount = personal.getCreditAccount();
+        creditAccount.setIdentifier(personal.getDni());
+        return Mono.zip(findAllCreditAccountByDni(personal.getDni()),createCreditAccount(creditAccount),personalRepository.save(personal))
                 .map(account->{
                     if(account.getT1().equals(false)) return Mono.empty();
-                    return account.getT2();
+                    account.getT2();
+                    return account.getT3();
                 }).thenReturn(personal);
     }
 
