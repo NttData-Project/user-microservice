@@ -32,14 +32,14 @@ public class EnterpriseController {
         return enterpriseService.findById(id).map(ResponseEntity::ok).defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("saveCurrentAccount/{type}")
+    @PostMapping("/saveCurrentAccount/{type}")
     public ResponseEntity<Mono<Enterprise>> saveCurrentAccount(@RequestBody Enterprise enterprise,@PathVariable CurrentAccountType type){
         Mono<Enterprise> result;
         if (type.equals(CurrentAccountType.NORMAL)) result = enterpriseService.saveNormalCurrentAccount(enterprise);
         else result = enterpriseService.savePymeCurrentAccount(enterprise);
         return ResponseEntity.ok(result);
     }
-    @PostMapping("saveCreditAccount")
+    @PostMapping("/saveCreditAccount")
     public ResponseEntity<Mono<Enterprise>> saveCreditAccount(@RequestBody Enterprise enterprise){
         return ResponseEntity.ok(enterpriseService.saveCreditAccount(enterprise));
     }
