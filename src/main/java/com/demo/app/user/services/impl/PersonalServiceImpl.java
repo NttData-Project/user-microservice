@@ -88,7 +88,7 @@ public class PersonalServiceImpl implements PersonalService {
     private Mono<Boolean> findCardsDuplicated(String dni) {
         return Mono.zip(findSavingAccountByDni(dni), findCurrentAccountByDni(dni), findFixedTermAccountByDni(dni))
                 .map(account -> {
-                    if (account.getT1().equals(false) && account.getT2().equals(false) && account.getT3().equals(false)) {
+                    if (!account.getT1().equals(false) && account.getT2().equals(false) && account.getT3().equals(false)) {
                         return false;
                     }
                     return true;
@@ -97,14 +97,11 @@ public class PersonalServiceImpl implements PersonalService {
 
 
     private Mono<Personal> findAndCreatePersonalAccount(Personal personal, SavingAccount savingAccount) {
-        return findCardsDuplicated(personal.getDni()).flatMap(x->{
-            if(!x) return Mono.zip(personalRepository.save(personal),createSavingAccount(savingAccount))
-                    .map(account -> {
-                        account.getT1();
-                        return account.getT2();
-                    });
-            return Mono.empty();
-        }).thenReturn(personal);
+        return findCardsDuplicated(personal.getDni()).flatMap(x->!x?Mono.zip(personalRepository.save(personal),createSavingAccount(savingAccount))
+                .map(account -> {
+                    account.getT1();
+                    return account.getT2();
+                }):Mono.empty()).thenReturn(personal);
     }
 
     @Override
@@ -129,14 +126,11 @@ public class PersonalServiceImpl implements PersonalService {
     public Mono<Personal> saveFixedTermAccount(Personal personal) {
         FixedTermAccount fixedTermAccount = personal.getFixedTermAccount();
         fixedTermAccount.setIdentifier(personal.getDni());
-        return findCardsDuplicated(personal.getDni()).flatMap(x->{
-            if(!x) return Mono.zip(personalRepository.save(personal), createFixedTermAccount(fixedTermAccount))
-                    .map(account -> {
-                        account.getT1();
-                        return account.getT2();
-                    });
-            return Mono.empty();
-        }).thenReturn(personal);
+        return findCardsDuplicated(personal.getDni()).flatMap(x->!x?Mono.zip(personalRepository.save(personal), createFixedTermAccount(fixedTermAccount))
+                .map(account -> {
+                    account.getT1();
+                    return account.getT2();
+                }):Mono.empty()).thenReturn(personal);
     }
 
     @Override
@@ -145,7 +139,7 @@ public class PersonalServiceImpl implements PersonalService {
         creditAccount.setIdentifier(personal.getDni());
         return Mono.zip(findAllCreditAccountByDni(personal.getDni()),createCreditAccount(creditAccount),personalRepository.save(personal))
                 .map(account->{
-                    if(account.getT1().equals(false)) return Mono.empty();
+                    if(account.getT1().equals(true)) return Mono.empty();
                     account.getT2();
                     return account.getT3();
                 }).thenReturn(personal);
@@ -157,14 +151,11 @@ public class PersonalServiceImpl implements PersonalService {
         CurrentAccount currentAccount = personal.getCurrentAccount();
         currentAccount.setIdentifier(personal.getDni());
         currentAccount.setType(CurrentAccountType.NORMAL);
-        return findCardsDuplicated(personal.getDni()).flatMap(x->{
-            if(!x) return Mono.zip(personalRepository.save(personal), createCurrentAccount(currentAccount))
-                    .map(account -> {
-                        account.getT1();
-                        return account.getT2();
-                    });
-            return Mono.empty();
-        }).thenReturn(personal);
+        return findCardsDuplicated(personal.getDni()).flatMap(x->!x?Mono.zip(personalRepository.save(personal), createCurrentAccount(currentAccount))
+                .map(account -> {
+                    account.getT1();
+                    return account.getT2();
+                }):Mono.empty()).thenReturn(personal);
     }
 
     @Override
@@ -180,8 +171,10 @@ public class PersonalServiceImpl implements PersonalService {
             x.setLastName(personal.getLastName());
             x.setEmail(personal.getEmail());
             x.setNumber(personal.getNumber());
-            if(x.getCurrentAccount()!=null) return updateCurrentAccount(personal.getCurrentAccount()).then(personalRepository.save(x));
-            else return personalRepository.save(x);
+            if(x.getCurrentAccount()!=null) {
+                x.setCurrentAccount(personal.getCurrentAccount());
+                return updateCurrentAccount(personal.getCurrentAccount()).then(personalRepository.save(x));
+            }else return personalRepository.save(x);
         });
     }
 
