@@ -3,6 +3,8 @@ package com.demo.app.user.controllers;
 import com.demo.app.user.entities.Enterprise;
 import com.demo.app.user.models.CurrentAccountType;
 import com.demo.app.user.services.EnterpriseService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -10,6 +12,8 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/enterprise")
+@TimeLimiter(name = "user-service")
+@CircuitBreaker(name = "user-service")
 public class EnterpriseController {
     private final EnterpriseService enterpriseService;
 

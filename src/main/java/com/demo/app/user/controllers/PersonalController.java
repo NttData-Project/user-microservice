@@ -3,6 +3,8 @@ package com.demo.app.user.controllers;
 import com.demo.app.user.entities.Personal;
 import com.demo.app.user.models.SavingAccountType;
 import com.demo.app.user.services.PersonalService;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -10,6 +12,8 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/personal")
+@TimeLimiter(name = "user-service")
+@CircuitBreaker(name = "user-service")
 public class PersonalController {
     private final PersonalService personalService;
 
