@@ -88,7 +88,7 @@ public class PersonalServiceImpl implements PersonalService {
     private Mono<Boolean> findCardsDuplicated(String dni) {
         return Mono.zip(findSavingAccountByDni(dni), findCurrentAccountByDni(dni), findFixedTermAccountByDni(dni))
                 .map(account -> {
-                    if (!account.getT1().equals(false) && account.getT2().equals(false) && account.getT3().equals(false)) {
+                    if (account.getT1().equals(false) && account.getT2().equals(false) && account.getT3().equals(false)) {
                         return false;
                     }
                     return true;

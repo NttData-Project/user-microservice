@@ -12,8 +12,6 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/personal")
-@TimeLimiter(name = "user-service")
-@CircuitBreaker(name = "user-service")
 public class PersonalController {
     private final PersonalService personalService;
 

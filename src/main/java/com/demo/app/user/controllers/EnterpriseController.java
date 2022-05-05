@@ -12,8 +12,6 @@ import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/enterprise")
-@TimeLimiter(name = "user-service")
-@CircuitBreaker(name = "user-service")
 public class EnterpriseController {
     private final EnterpriseService enterpriseService;
 
